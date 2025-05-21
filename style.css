@@ -1,0 +1,23 @@
+html,
+body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #111;
+}
+.container {
+  position: relative;
+  width: 1024px;
+  height: 512px;
+  border: 1px solid #333;
+}
+svg {
+  width: 100%;
+  height: 100%;
+}
+.blob {
+  cursor: pointer;
+  will-change: transform;
+}
