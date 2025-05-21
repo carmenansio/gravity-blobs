@@ -1,0 +1,28 @@
+body {
+  margin: 0;
+  background: #111;
+  overflow: hidden;
+  user-select: none;
+}
+
+.container {
+  position: relative;
+  width: 1024px;
+  height: 512px;
+  margin: 0 auto;
+  border: 1px solid #444;
+  background: #222;
+}
+
+.blob-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+  pointer-events: auto;
+}
+
+canvas {
+  display: block;
+  pointer-events: none;
+}
