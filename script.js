@@ -1,19 +1,13 @@
 import Matter from "https://cdn.jsdelivr.net/npm/matter-js@0.20.0/+esm";
-const {
-  Engine,
-  World,
-  Bodies,
-  Body,
-  Runner,
-  Events,
-  Svg,
-  Mouse,
-  MouseConstraint
-} = Matter;
+import decomp from "https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/+esm";
+window.decomp = decomp;
+
+const { Engine, World, Bodies, Body, Runner, Events, Svg } = Matter;
 
 const WIDTH = 1024;
 const HEIGHT = 512;
 
+/* 🌍 Engine + mundo con gravedad visible */
 const engine = Engine.create({
   gravity: { x: 0, y: 1, scale: 0.01 },
   positionIterations: 10,
@@ -21,14 +15,14 @@ const engine = Engine.create({
 });
 const world = engine.world;
 
-/* 🧱 Suelo y paredes */
+/* 🧱 Paredes + suelo */
 World.add(world, [
   Bodies.rectangle(WIDTH / 2, HEIGHT + 30, WIDTH, 60, { isStatic: true }),
   Bodies.rectangle(-30, HEIGHT / 2, 60, HEIGHT, { isStatic: true }),
   Bodies.rectangle(WIDTH + 30, HEIGHT / 2, 60, HEIGHT, { isStatic: true })
 ]);
 
-/* 🎨 Blob shapes */
+/* 🎨 SVG blobs convertidos a cuerpos físicos */
 const wrappers = [...document.querySelectorAll(".blob-wrapper")].filter((w) =>
   w.querySelector(".blob")?.getAttribute("d")?.trim()
 );
@@ -66,62 +60,35 @@ wrappers.forEach((w) => {
     });
   }
 
-  /* 💤 No dormir nunca */
+  /* 💤 Nunca dormir */
   body.isSleeping = false;
   body.sleepThreshold = Infinity;
 
   World.add(world, body);
+
+  w.addEventListener("pointerenter", () => {
+    const force = 0.9; // ← subimos el empuje total
+    const angle = Math.random() * Math.PI * 2;
+
+    // Empuje + rotación loca
+    Body.applyForce(body, body.position, {
+      x: Math.cos(angle) * force,
+      y: Math.sin(angle) * force - 0.4
+    });
+
+    // Extra: dale un giro para que rote al salir volando
+    Body.setAngularVelocity(body, (Math.random() - 0.5) * 4);
+  });
+
   blobs.push({ wrapper: w, body, baseX, baseY });
 });
 
-/* 🌀 Aura opcional — empuje con cursor cerca */
-const container = document.querySelector(".container");
-let cursor = { x: null, y: null };
-
-container.addEventListener("pointermove", (e) => {
-  const rect = container.getBoundingClientRect();
-  cursor.x = e.clientX - rect.left;
-  cursor.y = e.clientY - rect.top;
-});
-container.addEventListener("pointerleave", () => {
-  cursor.x = cursor.y = null;
-});
-
-const AURA_RADIUS = 220;
-const AURA_FORCE = 0.7;
-
-/* 🖱️ Drag & Drop */
-const mouse = Mouse.create(container);
-const mouseConstraint = MouseConstraint.create(engine, {
-  mouse,
-  constraint: {
-    stiffness: 0.2,
-    render: { visible: false }
-  }
-});
-World.add(world, mouseConstraint);
-
-/* ▶ Run engine */
+/* ▶ Iniciar motor */
 Runner.run(Runner.create(), engine);
 
-/* 🔁 Loop */
+/* 🔁 Actualizar transform de cada blob cada frame */
 Events.on(engine, "afterUpdate", () => {
   blobs.forEach(({ wrapper, body, baseX, baseY }) => {
-    /* Aura force */
-    if (cursor.x != null) {
-      const dx = body.position.x - cursor.x;
-      const dy = body.position.y - cursor.y;
-      const d = Math.hypot(dx, dy);
-      if (d < AURA_RADIUS && d > 1) {
-        const m = AURA_FORCE * Math.pow(1 - d / AURA_RADIUS, 2);
-        Body.applyForce(body, body.position, {
-          x: (dx / d) * m,
-          y: (dy / d) * m
-        });
-      }
-    }
-
-    /* Sync transform */
     const dx = body.position.x - baseX;
     const dy = body.position.y - baseY;
     wrapper.style.transform = `translate(${dx}px, ${dy}px) rotate(${body.angle}rad)`;
