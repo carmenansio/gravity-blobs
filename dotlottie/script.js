@@ -1,16 +1,22 @@
+import { DotLottie } from "https://esm.sh/@lottiefiles/dotlottie-web";
 import Matter from "https://cdn.jsdelivr.net/npm/matter-js@0.20.0/+esm";
 import decomp from "https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/+esm";
 window.decomp = decomp;
 
 const {
-  Engine, World, Bodies, Body, Runner, Events, Svg,
-  Mouse, MouseConstraint
+  Engine,
+  World,
+  Bodies,
+  Body,
+  Runner,
+  Events,
+  Mouse,
+  MouseConstraint
 } = Matter;
 
 const WIDTH = 1024;
 const HEIGHT = 512;
 
-/* 🌍 Motor con gravedad */
 const engine = Engine.create({
   gravity: { x: 0, y: 1, scale: 0.01 },
   positionIterations: 10,
@@ -18,59 +24,63 @@ const engine = Engine.create({
 });
 const world = engine.world;
 
-/* 🧱 Suelo y paredes */
+/* 🧱 Paredes del contenedor */
 World.add(world, [
-  Bodies.rectangle(WIDTH / 2, HEIGHT + 30, WIDTH, 60, { isStatic: true }),
-  Bodies.rectangle(-30, HEIGHT / 2, 60, HEIGHT, { isStatic: true }),
-  Bodies.rectangle(WIDTH + 30, HEIGHT / 2, 60, HEIGHT, { isStatic: true })
+  Bodies.rectangle(WIDTH / 2, HEIGHT - 20, WIDTH, 60, { isStatic: true }), // suelo
+  Bodies.rectangle(-30, HEIGHT / 2, 60, HEIGHT, { isStatic: true }), // izquierda
+  Bodies.rectangle(WIDTH + 30, HEIGHT / 2, 60, HEIGHT, { isStatic: true }) // derecha
 ]);
 
-/* 🎨 Blobs desde SVG */
-const wrappers = [...document.querySelectorAll(".blob-wrapper")]
-  .filter(w => w.querySelector(".blob")?.getAttribute("d")?.trim());
+/* ⚙️ Blobs con animaciones específicas */
+const animationNames = ["angry", "sad", "laughing"];
+const src =
+  "https://lottie.host/294b684d-d6b4-4116-ab35-85ef566d4379/VkGHcqcMUI.lottie";
 
+const wrappers = document.querySelectorAll(".blob-wrapper");
 const container = document.querySelector(".container");
+
 const blobs = [];
 
-wrappers.forEach(w => {
-  const path = w.querySelector(".blob");
-  const box = path.getBBox();
-  const baseX = box.x + box.width / 2;
-  const baseY = box.y + box.height / 2;
-  let body;
+animationNames.forEach((name, i) => {
+  const wrapper = wrappers[i];
+  const canvas = wrapper.querySelector("canvas");
 
-  try {
-    const verts = Svg.pathToVertices(path, 20);
-    if (verts.length >= 3) {
-      body = Bodies.fromVertices(
-        baseX,
-        -Math.random() * 300 - box.height,
-        verts,
-        { restitution: 0.45, friction: 0.3, frictionAir: 0.04, density: 0.002 },
-        true
-      );
-      if (Array.isArray(body)) body = Body.create({ parts: body });
-    }
-  } catch {}
+  // Tamaño base del blob
+  const size = 100 + Math.random() * 40;
+  canvas.width = canvas.height = size;
 
-  if (!body) {
-    const r = Math.max(box.width, box.height) / 2;
-    body = Bodies.circle(
-      baseX,
-      -Math.random() * 300 - r,
-      r,
-      { restitution: 0.45, friction: 0.3, frictionAir: 0.04, density: 0.002 }
-    );
-  }
+  // Posición inicial dentro del contenedor
+  const x = 150 + i * 250;
+  const y = -100;
+
+  // Iniciar player Lottie
+  const player = new DotLottie({
+    canvas,
+    src,
+    loop: true,
+    autoplay: true,
+    renderer: "canvas",
+    animationName: name
+  });
+
+  // Crear cuerpo físico (círculo)
+  const body = Bodies.circle(x, y, size / 2, {
+    restitution: 0.45,
+    friction: 0.3,
+    frictionAir: 0.04,
+    density: 0.002
+  });
 
   body.isSleeping = false;
   body.sleepThreshold = Infinity;
 
   World.add(world, body);
-  blobs.push({ wrapper: w, body, baseX, baseY });
+
+  // Guardamos referencia para sincronizar transform
+  blobs.push({ wrapper, body });
 });
 
-/* 🖱️ Drag con colisiones físicas */
+/* 🖱️ Drag real con colisiones */
 const mouse = Mouse.create(container);
 const mouseConstraint = MouseConstraint.create(engine, {
   mouse,
@@ -81,15 +91,13 @@ const mouseConstraint = MouseConstraint.create(engine, {
 });
 World.add(world, mouseConstraint);
 
-/* ▶ Ejecutar */
+/* ▶ Iniciar el motor */
 Runner.run(Runner.create(), engine);
 
-/* 🔁 Sincronización visual */
+/* 🔁 Loop visual para transformar el wrapper */
 Events.on(engine, "afterUpdate", () => {
-  blobs.forEach(({ wrapper, body, baseX, baseY }) => {
-    const dx = body.position.x - baseX;
-    const dy = body.position.y - baseY;
-    wrapper.style.transform = `translate(${dx}px, ${dy}px) rotate(${body.angle}rad)`;
+  blobs.forEach(({ wrapper, body }) => {
+    wrapper.style.transform = `translate(${body.position.x}px, ${body.position.y}px) rotate(${body.angle}rad)`;
     wrapper.style.transformOrigin = "center center";
   });
 });
