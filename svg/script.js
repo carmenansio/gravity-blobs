@@ -24,26 +24,36 @@ const engine = Engine.create({
 });
 const world = engine.world;
 
-/* 🧱 Suelo y paredes */
+/* 🧱 Paredes del contenedor */
 World.add(world, [
-  Bodies.rectangle(WIDTH / 2, HEIGHT + 30, WIDTH, 60, { isStatic: true }),
-  Bodies.rectangle(-30, HEIGHT / 2, 60, HEIGHT, { isStatic: true }),
-  Bodies.rectangle(WIDTH + 30, HEIGHT / 2, 60, HEIGHT, { isStatic: true })
+  Bodies.rectangle(WIDTH / 2, HEIGHT + 30, WIDTH, 60, { isStatic: true }), // suelo
+  Bodies.rectangle(-30, HEIGHT / 2, 60, HEIGHT, { isStatic: true }), // izquierda
+  Bodies.rectangle(WIDTH + 30, HEIGHT / 2, 60, HEIGHT, { isStatic: true }) // derecha
 ]);
 
-/* 📦 Blobs animados con dotLottie */
+/* ⚙️ Blobs con animaciones específicas */
 const animationNames = ["angry", "sad", "laughing"];
 const src =
   "https://lottie.host/294b684d-d6b4-4116-ab35-85ef566d4379/VkGHcqcMUI.lottie";
 
 const wrappers = document.querySelectorAll(".blob-wrapper");
+const container = document.querySelector(".container");
+
 const blobs = [];
 
 animationNames.forEach((name, i) => {
   const wrapper = wrappers[i];
   const canvas = wrapper.querySelector("canvas");
 
-  // reproducir segmento
+  // Tamaño base del blob
+  const size = 100 + Math.random() * 40;
+  canvas.width = canvas.height = size;
+
+  // Posición inicial dentro del contenedor
+  const x = 150 + i * 250;
+  const y = -100;
+
+  // Iniciar player Lottie
   const player = new DotLottie({
     canvas,
     src,
@@ -53,12 +63,7 @@ animationNames.forEach((name, i) => {
     animationName: name
   });
 
-  const size = 100 + Math.random() * 50;
-  canvas.width = canvas.height = size;
-
-  const x = 200 + i * 200;
-  const y = -Math.random() * 300;
-
+  // Crear cuerpo físico (círculo)
   const body = Bodies.circle(x, y, size / 2, {
     restitution: 0.45,
     friction: 0.3,
@@ -70,11 +75,12 @@ animationNames.forEach((name, i) => {
   body.sleepThreshold = Infinity;
 
   World.add(world, body);
-  blobs.push({ wrapper, body, baseX: x, baseY: y });
+
+  // Guardamos referencia para sincronizar transform
+  blobs.push({ wrapper, body });
 });
 
-/* 🖱️ Drag & drop con colisiones */
-const container = document.querySelector(".container");
+/* 🖱️ Drag real con colisiones */
 const mouse = Mouse.create(container);
 const mouseConstraint = MouseConstraint.create(engine, {
   mouse,
@@ -85,15 +91,13 @@ const mouseConstraint = MouseConstraint.create(engine, {
 });
 World.add(world, mouseConstraint);
 
-/* ▶ Ejecutar motor */
+/* ▶ Iniciar el motor */
 Runner.run(Runner.create(), engine);
 
-/* 🔁 Actualizar posición de blobs */
+/* 🔁 Loop visual para transformar el wrapper */
 Events.on(engine, "afterUpdate", () => {
-  blobs.forEach(({ wrapper, body, baseX, baseY }) => {
-    const dx = body.position.x - baseX;
-    const dy = body.position.y - baseY;
-    wrapper.style.transform = `translate(${dx}px, ${dy}px) rotate(${body.angle}rad)`;
+  blobs.forEach(({ wrapper, body }) => {
+    wrapper.style.transform = `translate(${body.position.x}px, ${body.position.y}px) rotate(${body.angle}rad)`;
     wrapper.style.transformOrigin = "center center";
   });
 });

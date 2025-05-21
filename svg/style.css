@@ -9,9 +9,10 @@ body {
   position: relative;
   width: 1024px;
   height: 512px;
-  margin: 0 auto;
+  margin: 40px auto;
   border: 1px solid #444;
   background: #222;
+  overflow: hidden;
 }
 
 .blob-wrapper {
