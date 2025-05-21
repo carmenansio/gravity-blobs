@@ -3,12 +3,14 @@ import decomp from "https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/+esm";
 window.decomp = decomp;
 
 const {
-  Engine, World, Bodies, Body, Runner, Events, Svg
+  Engine, World, Bodies, Body, Runner, Events, Svg,
+  Mouse, MouseConstraint
 } = Matter;
 
 const WIDTH = 1024;
 const HEIGHT = 512;
 
+/* 🌍 Motor con gravedad */
 const engine = Engine.create({
   gravity: { x: 0, y: 1, scale: 0.01 },
   positionIterations: 10,
@@ -23,7 +25,7 @@ World.add(world, [
   Bodies.rectangle(WIDTH + 30, HEIGHT / 2, 60, HEIGHT, { isStatic: true })
 ]);
 
-/* 🎨 Convertir blobs SVG en cuerpos físicos */
+/* 🎨 Blobs desde SVG */
 const wrappers = [...document.querySelectorAll(".blob-wrapper")]
   .filter(w => w.querySelector(".blob")?.getAttribute("d")?.trim());
 
@@ -61,39 +63,28 @@ wrappers.forEach(w => {
     );
   }
 
-  // No dormir nunca
   body.isSleeping = false;
   body.sleepThreshold = Infinity;
 
   World.add(world, body);
-
-  // 🐁 Empujón en dirección contraria al cursor
-  w.addEventListener("pointerenter", (e) => {
-    const rect = container.getBoundingClientRect();
-    const pointerX = e.clientX - rect.left;
-    const pointerY = e.clientY - rect.top;
-
-    const dx = body.position.x - pointerX;
-    const dy = body.position.y - pointerY;
-    const dist = Math.hypot(dx, dy) || 1;
-
-    const force = 0.8;
-    const fx = (dx / dist) * force;
-    const fy = (dy / dist) * force;
-
-    Body.applyForce(body, body.position, { x: fx, y: fy });
-
-    // Opcional: giro loco al salir
-    Body.setAngularVelocity(body, (Math.random() - 0.5) * 2);
-  });
-
   blobs.push({ wrapper: w, body, baseX, baseY });
 });
 
-/* ▶ Iniciar motor */
+/* 🖱️ Drag con colisiones físicas */
+const mouse = Mouse.create(container);
+const mouseConstraint = MouseConstraint.create(engine, {
+  mouse,
+  constraint: {
+    stiffness: 0.2,
+    render: { visible: false }
+  }
+});
+World.add(world, mouseConstraint);
+
+/* ▶ Ejecutar */
 Runner.run(Runner.create(), engine);
 
-/* 🔁 Sincronizar blobs cada frame */
+/* 🔁 Sincronización visual */
 Events.on(engine, "afterUpdate", () => {
   blobs.forEach(({ wrapper, body, baseX, baseY }) => {
     const dx = body.position.x - baseX;
